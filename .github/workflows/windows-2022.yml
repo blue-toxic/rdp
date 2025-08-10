@@ -24,17 +24,27 @@ jobs:
         env:
           NGROK_AUTH: ${{ secrets.TAKEN }}
 
-      - name: Enable RDP
+      - name: Enable RDP and Firewall Rules
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
-          Copy-Item -Path wallpaper.bat -Destination D:\a\wallpaper.bat
+          Copy-Item wallpaper.bat -Destination D:\a\wallpaper.bat
 
       - name: Start Ngrok Tunnel
-        run: Start-Process powershell -ArgumentList '-NoExit', '-Command', './ngrok/ngrok.exe tcp --region ap 3389'
+        run: |
+          Start-Process -NoNewWindow -FilePath "./ngrok/ngrok.exe" -ArgumentList "tcp 3389 --region ap"
+          Start-Sleep -Seconds 10
+          Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:4040/api/tunnels" -OutFile tunnels.json
+          $json = Get-Content tunnels.json | ConvertFrom-Json
+          $rdp = $json.tunnels[0].public_url -replace "tcp://", ""
+          Write-Host "======================================="
+          Write-Host "🔗 Connect RDP: $rdp"
+          Write-Host "👤 Username: administrator"
+          Write-Host "🔐 Password: OLDUSER#6"
+          Write-Host "======================================="
 
-      - name: Run RDP Setup
+      - name: Start RDP Setup Script
         run: cmd /c start.bat
 
       - name: Keep Session Alive
